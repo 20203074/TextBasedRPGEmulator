@@ -1,6 +1,5 @@
 package net.biryeongtrain.text_emulator.registry;
 
-import com.google.common.collect.Iterators;
 import it.unimi.dsi.fastutil.objects.*;
 import net.biryeongtrain.text_emulator.utils.Util;
 import net.biryeongtrain.text_emulator.utils.identifier.Identifier;
@@ -10,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 
 public class SimpleRegistry<T> implements Registry<T>{
-    private boolean frozen = false;
+    private volatile boolean frozen = false;
     final RegistryKey<? extends Registry<T>> key;
     // we use IdentityMap because it uses == instead of equals. all registry value must be singleton
     private final ObjectList<T> entries = new ObjectArrayList<>();
@@ -29,6 +28,9 @@ public class SimpleRegistry<T> implements Registry<T>{
 
     @Override
     public @Nullable Identifier getId(T value) {
+        if (value == null) {
+            return null;
+        }
         return this.entryToId.get(value).getValue();
     }
 
@@ -51,15 +53,21 @@ public class SimpleRegistry<T> implements Registry<T>{
     }
 
     @Override
+    public boolean isFrozen() {
+        return frozen;
+    }
+
+    @Override
     public void freeze() {
         this.frozen = true;
     }
 
     @Override
     public void clear() {
-        this.frozen = false;
         this.entryToId.clear();
         this.idToEntry.clear();
+
+        this.frozen = false;
     }
 
     private void assertNotFrozen(RegistryKey<T> key) {
@@ -82,6 +90,7 @@ public class SimpleRegistry<T> implements Registry<T>{
             throw new IllegalStateException("Duplicate entry " + value);
         }
 
+        this.entries.add(value);
         this.idToEntry.put(key, value);
         this.entryToId.put(value, key);
         return value;
